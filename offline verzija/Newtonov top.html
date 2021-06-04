@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        
+        <title>Newtonov top</title>
+        
+<!--Komentar u HTML-u-->        
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+<!--Povezuje stylesheet kao odvojeni file pod nazivom estetika.css, koji pozadini daje gradijent-->  
+        <link rel="stylesheet" href="Newtonov%20top_files/estetika.css">
+
+        <noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+    </head>
+    <body class="" style="font-family:Arial;
+width: 700px;
+margin-left:auto;
+margin-right:auto;">
+        
+<title>Newtonov top</title>
+
+
+
+
+
+
+
+<div style="width:500px; margin-left:auto; margin-right:auto;">
+	<h1 style="font-size:30px;
+text-align:center; margin-block-start: 0.4em;
+    margin-block-end: 0em; color:#000000;">Newtonov top</h1>
+	<div style="position:relative;">
+		<img src="Newtonov%20top_files/NewtonovaIlustracija.png" style="position: absolute;">
+
+<!--Pozadinski canvas služi za crtanje traga putanje, dok Prednji canvas služi za crtanje crvene tačke koja se pomjera-->
+
+		<canvas id="PozadinskiCanvas" width="500" height="500" style="position: absolute; left: 0; top: 0;z-index: 1;"></canvas>
+		<canvas id="PrednjiCanvas" width="500" height="500" style="position: relative; left: 0; top: 0;z-index: 2;"></canvas>
+	</div>
+	<div style=" color: black;
+        background:  #F0FFF0;
+        border: 1px solid white;
+        font-size: 14pt;
+        height: 50;
+        border-radius: 10px;
+        box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 
+            0 6px 20px 0 rgba(0,0,0,0.19)padding-bottom:1em">
+		Početna brzina = <span id="IDBrzina" style="display:inline-block; width:2.2em;">6300</span> m/s
+		<input id="BrzinaVrijednost" type="range" min="0" max="8000" step="100" value="6300" onchange="showSpeed()" oninput="showSpeed()" style="width:200px;">
+	</div>
+	<div style="text-align:center; padding-top: 0.5em; ">
+		<input type="button" value="Ispali!" onclick="IspaliProjektil();" style=" color: black;
+        background:  #F0FFF0;
+        border: 1px solid white;
+        font-weight: bold;
+        font-size: 20pt;
+        height: 50;
+        border-radius: 10px;
+        box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 
+            0 6px 20px 0 rgba(0,0,0,0.19);">
+		<input type="button" value="Resetuj" onclick="OcistiTrag();" style=" color: black;
+        background:  #F0FFF0;
+        border: 1px solid white;
+        font-weight: bold;
+        font-size: 20pt;
+        height: 50;
+        border-radius: 10px;
+        box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2), 
+            0 6px 20px 0 rgba(0,0,0,0.19);">
+
+	</div>
+	 <p>Ova simulacije je bazirana na poznatom misaonom eksperimentu 
+i ilustraciji Isaka Newtona, u kojem se projektil ispaljuje prema horizontu
+sa vrha visoke planine, različtim brzinama. Eksperiment je opisan u njegovom 
+djelu:
+
+<a href="https://books.google.ba/books/about/A_Treatise_of_the_System_of_the_World.html?id=DXE9AAAAcAAJ&amp;redir_esc=y">A Treatise of the System of the World</a>
+
+</p><hr>
+
+Ova je simulacija urađena i inspirisana tutorijalom 
+<a href="https://physics.weber.edu/schroeder/html5/">"Creating Interactive Web Simulations Using HTML5 and JavaScript"</a> kreiranog od strane  <a href="https://physics.weber.edu/schroeder/">Dr. Daniel V. Schroeder-a</a>. Na čemu sam mu jako zahvalna.
+
+             <p></p>
+
+
+
+<script>
+
+	// Globalne varijable; znači koriste se u mnogim funkcijama:
+	var PozadinskiCanvas = document.getElementById("PozadinskiCanvas");
+	var PozadinskiContext = PozadinskiCanvas.getContext("2d");
+	var PrednjiCanvas = document.getElementById("PrednjiCanvas");
+	var PrednjiContext = PrednjiCanvas.getContext("2d");
+	var BrzinaVrijednost = document.getElementById("BrzinaVrijednost");
+	var IDBrzina = document.getElementById("IDBrzina");
+	var GravitacionaKonst = 6.67e-11;			// Gravitaciona konstanta u SI Jedinicama
+	var MasaZemlje = 5.97e24;		// kilograma
+	var RadijusZemlje = 6371000;		// metara
+	var MetarPoPixelu = RadijusZemlje * 2 / (0.71 * PozadinskiCanvas.width);		// nacrtaj Zemlju @ 71% canvas-ove širine da bude u skladu sa slikom
+	var VisinaPlanine = RadijusZemlje * 0.165;	// chosen to match image
+	var x = 0;						// pozicija projektila
+	var y = RadijusZemlje + VisinaPlanine;
+	var vx, vy;						// brzina projektila
+	var dt = 5;						// vremenski korak u sekundama
+	var brojac;						// Koristi se za planiranje sljedećeg poziva funkcije ProkeniProjektil
+
+	// Funkcija za ispaljivanja projektila:
+	function IspaliProjektil() {
+		window.clearTimeout(brojac);
+		x = 0;
+		y = RadijusZemlje + VisinaPlanine;
+		vx = Number(BrzinaVrijednost.value);
+		vy = 0;
+		ProkeniProjektil();
+	}
+
+	// Funkcija za pokretanje projektila
+	function ProkeniProjektil() {
+		var r = Math.sqrt(x*x + y*y);
+		if (r > RadijusZemlje) {
+			var accel = GravitacionaKonst * MasaZemlje / (r * r);		// Intenzitet ubrzanja
+			var ax = - accel * x / r;
+			var ay = - accel * y / r;
+			vx += ax * dt;
+			vy += ay * dt;
+			var lastx = x;			// Da bi se moglo testirati za punu orbitu
+			x += vx * dt;
+			y += vy * dt;			// Euler-Cromer algorithm
+			NacrtajProjektil();
+			if (!((lastx < 0) && (x > 0))) {
+				brojac = window.setTimeout(ProkeniProjektil, 1000/120);	// kašnjnje u milisekundama
+			}
+		} 
+	}
+
+	// Funkcija za ciscenje pozadinske funkcije
+	function OcistiTrag() {
+		PozadinskiContext.clearRect(0, 0, PozadinskiCanvas.width, PozadinskiCanvas.height);
+	}
+	
+	// Funkcija za crtanje projektila i njenog traga
+	function NacrtajProjektil() {
+		// Nacrtaj malu tačku koja predstavlja projektil:
+		var centarX = PozadinskiCanvas.width / 2;
+		var centarY = PozadinskiCanvas.height / 2;
+		var pixelX = centarX + x/MetarPoPixelu;
+		var pixelY = centarY - y/MetarPoPixelu;		// jer se mjeri odgozgo na dole
+		PozadinskiContext.fillStyle = "red";
+		PozadinskiContext.fillRect(pixelX-0.5, pixelY-0.5, 1, 1);
+		PrednjiContext.fillStyle = "red";
+		PrednjiContext.clearRect(0, 0, PrednjiCanvas.width, PrednjiCanvas.height);
+		PrednjiContext.beginPath();
+		PrednjiContext.arc(pixelX, pixelY, 5, 0, 2*Math.PI);
+		PrednjiContext.fill();
+	}
+
+	// Funkcija za prikaz brzine:
+	function showSpeed() {
+		IDBrzina.innerHTML = BrzinaVrijednost.value;
+	}
+
+
+
+</script>
+
+
+</div></body></html>
