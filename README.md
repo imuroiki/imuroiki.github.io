@@ -1,2 +1,0 @@
-# imuroiki.github.io
-Website
